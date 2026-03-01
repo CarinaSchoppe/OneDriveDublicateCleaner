@@ -1,195 +1,202 @@
 # OneDrive Duplicate Cleaner
 
-A practical, safety-first Jupyter workflow to clean up large OneDrive folders.
-
-This project helps you:
-- detect exact duplicate files,
-- detect near-duplicate images,
-- detect AI-based visually similar image bursts,
-- quarantine AI-grouped duplicates instead of deleting them,
-- rename cryptic image filenames to readable timestamp names,
-- export detailed CSV reports for every plan and execution step.
+A safety-first Jupyter workflow for cleaning large OneDrive folders.
 
 Primary notebook: `onedrive_duplicate_cleaner.ipynb`
 
-## What It Does
+## Features
 
-### 1) Exact duplicate detection
-- Scans files recursively under `ROOT_DIR`.
-- Groups candidates by file size, then confirms duplicates with SHA-256.
-- Keeps one file per group and plans deletion for the rest.
+- Exact duplicate detection (size + SHA-256)
+- Near-duplicate image detection via dHash
+- AI visual similarity grouping via CLIP
+- Optional exhaustive AI comparison mode (all image pairs)
+- AI-assisted semantic image renaming (free local open-source model inference)
+- AI quarantine move (keep one, move similar images)
+- Two final CSV reports (concise output)
 
-### 1B) Near-duplicate image detection (dHash)
-- Computes 64-bit perceptual hashes.
-- Compares only nearby files in time and within the same resolution bucket for speed.
-- Flags similar images without deleting them.
+## How Good Is The AI Similarity Detection?
 
-### 1C) AI visual grouping (CLIP)
-- Uses `openai/clip-vit-base-patch32` (or a custom CLIP model name).
-- Finds visually similar burst/group-photo variants with small motion changes.
-- Supports threshold as either:
-  - float in `[0..1]` via `AI_SIMILARITY_THRESHOLD`, or
-  - percent via `AI_SIMILARITY_PERCENT` (e.g. `93.0`).
-- Includes verbose scan/batch/pair logs.
+It is strong for practical cleanup, but no model is perfect.
 
-### 1D) AI quarantine move
-- Builds a move plan from AI groups (keep one, move the rest).
-- Moves files to quarantine instead of deleting:
-  - `_duplicate_cleaner_quarantine/ai_visual`
+To maximize recall:
 
-### 2) Duplicate deletion (optional)
-- Executes deletion plan only when safety conditions are explicitly met.
+- set `AI_COMPARE_ALL_PAIRS = True` (every image vs every image)
+- start with `AI_SIMILARITY_PERCENT = 92.0`
+- keep `AI_VERBOSE = True`
 
-### 3) Cryptic image rename (optional)
-- Renames cryptic image filenames into timestamp-based names.
-- Always previews first, then optionally executes.
+Tradeoff:
 
-### 5 + 6B) Reporting
-- Writes CSV reports for plans and executions into:
-  - `_duplicate_cleaner_reports`
+- exhaustive mode can be much slower on large libraries (`O(n^2)` comparisons)
+
+## AI Semantic Rename
+
+The rename phase can add AI labels to timestamp-based filenames.
+
+Example:
+
+- from: `PXL_20240123_123456.jpg`
+- to: `2024-01-23_12-34-56_DogChildrenBeach.jpg`
+
+Rules:
+
+- uses local inference with Hugging Face models (download once, then run locally)
+- default primary model: `Salesforce/blip-image-captioning-large`
+- fallback model: `Salesforce/blip-image-captioning-base`
+- `AI_RENAME_MAX_WORDS > 0`: CamelCase label with max words
+- `AI_RENAME_MAX_WORDS = 0`: full mini-sentence label (underscore style)
+- filename collisions are auto-resolved with `_1`, `_2`, ...
 
 ## Safety Model
 
-Destructive actions are blocked unless all safety switches are set correctly.
+Destructive actions are blocked unless all gates are open.
 
-Execution gate requires:
+Execution gate requires all:
 1. `DRY_RUN = False`
 2. `CONFIRM_EXECUTION = True`
 3. `CONFIRM_TEXT = "JA_LOESCHEN_UND_UMBENENNEN"`
 
-Plus action-specific flags:
+And action flags:
 - delete duplicates: `DELETE_DUPLICATES = True`
 - rename images: `RENAME_IMAGES = True`
 - move AI groups to quarantine: `MOVE_AI_GROUPS_TO_QUARANTINE = True`
-
-Recommended workflow:
-1. Keep `DRY_RUN=True` and run preview phases first.
-2. Review on-screen output and CSV reports.
-3. Enable only the action(s) you actually want to execute.
 
 ## Requirements
 
 - Python 3.10+
 - Jupyter Notebook / JupyterLab
-- OS: tested in Windows/OneDrive-style setups
 
-Install base dependencies:
+Install base:
 ```bash
 pip install pillow
 ```
 
-Install AI dependencies (for Phase 1C):
+Install AI stack:
 ```bash
 pip install torch transformers tqdm ipywidgets
 ```
 
-Notes:
-- First AI run downloads CLIP model weights from Hugging Face.
-- Without `HF_TOKEN`, downloads still work but may be slower/rate-limited.
+Optional (better Hugging Face rate limits):
+
+- set `HF_TOKEN`
+
+## Recommended Starting Profile
+
+For high recall and strong rename quality:
+
+- `AI_COMPARE_ALL_PAIRS = True`
+- `AI_SIMILARITY_PERCENT = 92.0`
+- `AI_VERBOSE = True`
+- `RENAME_IMAGES = True`
+- `RENAME_WITH_AI_LABEL = True`
+- `AI_RENAME_MODEL_NAME = "Salesforce/blip-image-captioning-large"`
+- `AI_RENAME_MODEL_FALLBACK = "Salesforce/blip-image-captioning-base"`
+- `AI_RENAME_MAX_WORDS = 8` (or `0` for full mini-sentence)
+- `RENAME_ALL_IMAGES_WITH_AI_LABEL = False` (set `True` to rename all images)
 
 ## Quick Start
 
-1. Open `onedrive_duplicate_cleaner.ipynb`.
-2. In the configuration cell, set at least:
-   - `ROOT_DIR`
-   - `DRY_RUN`
-3. Run preview phases in this order:
-   - Phase 1
-   - Phase 1B
-   - Phase 1C
-   - Phase 1D
-   - Phase 3
-4. Write reports:
-   - Phase 5
-   - Phase 6B
-5. If everything looks correct, enable execution flags and run the required execution phases.
+1. Open `onedrive_duplicate_cleaner.ipynb`
+2. Set `ROOT_DIR`
+3. Run preview phases:
+   - Phase 1 (duplicates)
+   - Phase 1B (near-duplicates)
+   - Phase 1C (AI visual grouping)
+   - Phase 1D (AI quarantine plan)
+   - Phase 3 (rename preview)
+4. Run Phase 5 to generate the two final reports
+5. If output is correct, enable execution flags and run live phases
 
 ## Key Configuration
 
 ### Core
-- `ROOT_DIR`: root folder to scan (default: `Path.home() / "OneDrive"`)
-- `DRY_RUN`: global safety mode
-- `SHOW_PREVIEW_DETAILS`: print detailed previews
-- `EXCLUDE_DIR_NAMES`: folders ignored during recursion
-- `INCLUDE_EXTENSIONS`: optional exact-duplicate filter by extension
 
-### Near-duplicates (1B)
+- `ROOT_DIR`
+- `DRY_RUN`
+- `SHOW_PREVIEW_DETAILS`
+- `EXCLUDE_DIR_NAMES`
+
+### Near-duplicates
 - `FIND_SIMILAR_IMAGES`
-- `SIMILAR_HASH_THRESHOLD` (0..64, lower is stricter)
+- `SIMILAR_HASH_THRESHOLD`
 - `SIMILAR_NEIGHBOR_WINDOW`
 - `SIMILAR_MIN_FILE_SIZE_BYTES`
 
-### AI visual groups (1C)
+### AI visual grouping
 - `FIND_AI_VISUAL_GROUPS`
 - `AI_MODEL_NAME`
-- `AI_SIMILARITY_THRESHOLD` (0..1)
-- `AI_SIMILARITY_PERCENT` (e.g. `93.0`, overrides threshold)
+- `AI_SIMILARITY_THRESHOLD` (0..1 fallback)
+- `AI_SIMILARITY_PERCENT` (preferred)
 - `AI_NEIGHBOR_WINDOW`
-- `AI_MIN_FILE_SIZE_BYTES`
+- `AI_COMPARE_ALL_PAIRS` (`True` = exhaustive)
 - `AI_BATCH_SIZE`
 - `AI_VERBOSE`
 - `AI_VERBOSE_PAIR_LOG_LIMIT`
 
-### Quarantine (1D)
-- `MOVE_AI_GROUPS_TO_QUARANTINE`
-- `AI_QUARANTINE_DIR`
-
-### Execution controls
-- `DELETE_DUPLICATES`
+### AI semantic rename
 - `RENAME_IMAGES`
-- `CONFIRM_EXECUTION`
-- `CONFIRM_TEXT`
+- `RENAME_WITH_AI_LABEL`
+- `AI_RENAME_MODEL_NAME`
+- `AI_RENAME_MODEL_FALLBACK`
+- `AI_RENAME_MAX_WORDS` (`0` = full mini-sentence)
+- `AI_RENAME_MAX_CHARS`
+- `AI_ENRICH_DATE_ONLY_NAMES`
+- `RENAME_ALL_IMAGES_WITH_AI_LABEL`
+- `RENAME_VERBOSE_SUGGESTIONS`
+- `PREVIEW_RENAME_SUGGESTIONS_WHEN_RENAME_DISABLED`
 
-## Generated Reports
+## Final Reports (Only 2 Files)
 
-Reports are timestamped and written to:
+Written to:
 - `ROOT_DIR/_duplicate_cleaner_reports`
 
-### Phase 5
-- `duplicates_plan_YYYYMMDD_HHMMSS.csv`
-- `renames_plan_YYYYMMDD_HHMMSS.csv`
-- `similar_images_plan_YYYYMMDD_HHMMSS.csv`
-- `similar_images_pairs_YYYYMMDD_HHMMSS.csv`
-- `duplicates_executed_YYYYMMDD_HHMMSS.csv`
-- `renames_executed_YYYYMMDD_HHMMSS.csv`
+Files:
 
-### Phase 6B
-- `ai_visual_groups_plan_YYYYMMDD_HHMMSS.csv`
-- `ai_visual_groups_pairs_YYYYMMDD_HHMMSS.csv`
-- `ai_quarantine_plan_YYYYMMDD_HHMMSS.csv`
-- `ai_quarantine_executed_YYYYMMDD_HHMMSS.csv`
-
-## Project Layout
-
-- `onedrive_duplicate_cleaner.ipynb` - main workflow notebook
-- `models/` - optional local model assets (if used)
+1. `rename_and_similarity_report_<timestamp>.csv`
+   - rename-required entries
+   - similar-image entries with `%` similarity
+2. `duplicates_keep_delete_report_<timestamp>.csv`
+   - duplicate group
+   - keep file
+   - delete file list (`x | y | z`)
 
 ## Troubleshooting
 
-### AI phase loads but finds nothing
-- Lower strictness:
-  - reduce `AI_SIMILARITY_THRESHOLD` (or `AI_SIMILARITY_PERCENT`)
-  - increase `AI_NEIGHBOR_WINDOW`
-
-### Too many false positives
-- Increase strictness:
-  - raise `AI_SIMILARITY_THRESHOLD` / `AI_SIMILARITY_PERCENT`
-  - reduce `AI_NEIGHBOR_WINDOW`
-
-### iProgress warning in notebook
-- Install/update widgets:
+### `IProgress not found`
 ```bash
-pip install -U ipywidgets
+pip install -U ipywidgets tqdm
 ```
 
-### Pillow missing
-- Install:
-```bash
-pip install pillow
-```
+### Hugging Face unauthenticated warning
 
-## Important Notes
+- optional only; set `HF_TOKEN` for better limits/speed
 
-- This workflow is intentionally conservative and preview-first.
-- AI quarantine is safer than direct deletion for uncertain visual matches.
-- Always keep backups for critical folders before live execution.
+### AI too strict / too loose
+
+- stricter: increase `AI_SIMILARITY_PERCENT`
+- broader: decrease `AI_SIMILARITY_PERCENT`
+- exhaustive: set `AI_COMPARE_ALL_PAIRS = True`
+
+## Notes
+
+- Use preview-first workflow for safety.
+- For important data, keep backups before live execution.
+
+## Preview-only logging mode
+
+You can keep renaming disabled and still get full AI rename suggestions in logs.
+
+Set:
+
+- `RENAME_IMAGES = False`
+- `PREVIEW_RENAME_SUGGESTIONS_WHEN_RENAME_DISABLED = True`
+- `RENAME_VERBOSE_SUGGESTIONS = True`
+
+Then Phase 3 logs lines like:
+
+- source image path
+- current filename
+- proposed new AI-based filename
+- proposed target path
+- optional raw AI caption
+
+No file is renamed until `RENAME_IMAGES=True` and execution gates are satisfied.
