@@ -144,6 +144,16 @@ For high recall and strong rename quality:
 - `RENAME_VERBOSE_SUGGESTIONS`
 - `PREVIEW_RENAME_SUGGESTIONS_WHEN_RENAME_DISABLED`
 
+## In-Notebook Documentation Helpers
+
+The notebook includes explicit documentation and sanity-check helpers:
+
+- `show_settings_reference()`
+- `show_method_reference()`
+- `validate_configuration()`
+
+Use these after the helper cell is executed to inspect every setting/method with examples.
+
 ## Final Reports (Only 2 Files)
 
 Written to:
