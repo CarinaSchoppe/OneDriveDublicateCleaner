@@ -53,7 +53,7 @@ Destructive actions are blocked unless all gates are open.
 Execution gate requires all:
 1. `DRY_RUN = False`
 2. `CONFIRM_EXECUTION = True`
-3. `CONFIRM_TEXT = "JA_LOESCHEN_UND_UMBENENNEN"`
+3. `CONFIRM_TEXT = "YES_DELETE_AND_RENAME"`
 
 And action flags:
 - delete duplicates: `DELETE_DUPLICATES = True`
@@ -105,6 +105,38 @@ For high recall and strong rename quality:
    - Phase 3 (rename preview)
 4. Run Phase 5 to generate the two final reports
 5. If output is correct, enable execution flags and run live phases
+
+## CLI Setup Wizard
+
+Use the interactive CLI to configure settings without editing notebook code manually.
+
+Show all settings, explanations, and defaults:
+
+```bash
+python duplicate_cleaner_cli.py show
+```
+
+Run guided setup (yes/no + numeric/text prompts, with defaults):
+
+```bash
+python duplicate_cleaner_cli.py wizard
+```
+
+Write config to a custom path:
+
+```bash
+python duplicate_cleaner_cli.py wizard --config my_config.json
+```
+
+Default output file:
+
+- `duplicate_cleaner_cli_config.json`
+
+Notebook integration:
+
+- The configuration cell auto-loads `duplicate_cleaner_cli_config.json` if it exists.
+- Values from `settings` override notebook defaults.
+- `AI_QUARANTINE_DIR` is re-derived from `ROOT_DIR` if not explicitly set in config.
 
 ## Key Configuration
 
