@@ -11,6 +11,7 @@ Primary notebook: `onedrive_duplicate_cleaner.ipynb`
 - AI visual similarity grouping via CLIP
 - Optional exhaustive AI comparison mode (all image pairs)
 - AI-assisted semantic image renaming (free local open-source model inference)
+- Optional AI-assisted semantic video renaming from sampled video frames
 - AI quarantine move (keep one, move similar images)
 - Two final CSV reports (concise output)
 
@@ -28,7 +29,7 @@ Tradeoff:
 
 - exhaustive mode can be much slower on large libraries (`O(n^2)` comparisons)
 
-## AI Semantic Rename
+## AI Semantic Rename (Images + Optional Videos)
 
 The rename phase can add AI labels to timestamp-based filenames.
 
@@ -37,11 +38,17 @@ Example:
 - from: `PXL_20240123_123456.jpg`
 - to: `2024-01-23_12-34-56_DogChildrenBeach.jpg`
 
+Video example (frame-sampled content description):
+
+- from: `VID_20240123_123456.mp4`
+- to: `2024-01-23_12-34-56_A_person_walking_on_a_beach_at_sunset.mp4`
+
 Rules:
 
 - uses local inference with Hugging Face models (download once, then run locally)
 - default primary model: `Salesforce/blip-image-captioning-large`
 - fallback model: `Salesforce/blip-image-captioning-base`
+- optional video labels sample multiple frames and aggregate captions
 - `AI_RENAME_MAX_WORDS > 0`: CamelCase label with max words
 - `AI_RENAME_MAX_WORDS = 0`: full mini-sentence label (underscore style)
 - filename collisions are auto-resolved with `_1`, `_2`, ...
@@ -73,6 +80,12 @@ pip install pillow
 Install AI stack:
 ```bash
 pip install torch transformers tqdm ipywidgets
+```
+
+For optional video content renaming:
+
+```bash
+pip install opencv-python
 ```
 
 Optional (better Hugging Face rate limits):
@@ -173,6 +186,12 @@ Notebook integration:
 - `AI_RENAME_MAX_CHARS`
 - `AI_ENRICH_DATE_ONLY_NAMES`
 - `RENAME_ALL_IMAGES_WITH_AI_LABEL`
+- `RENAME_VIDEOS`
+- `RENAME_WITH_AI_VIDEO_LABEL`
+- `RENAME_ALL_VIDEOS_WITH_AI_LABEL`
+- `AI_VIDEO_SAMPLE_FRAMES`
+- `AI_VIDEO_MIN_FRAME_INTERVAL_SECONDS`
+- `AI_VIDEO_FRAME_MAX_DIM`
 - `RENAME_VERBOSE_SUGGESTIONS`
 - `PREVIEW_RENAME_SUGGESTIONS_WHEN_RENAME_DISABLED`
 
